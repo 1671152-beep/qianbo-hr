@@ -1,0 +1,1232 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenClaw HR - 千播企业管理系统</title>
+    
+    <!-- Primary CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    
+    <!-- Backup CDN for Vue -->
+    <script>
+        if (typeof Vue === 'undefined') {
+            document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"><\/script>');
+        }
+    </script>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body { font-family: 'Inter', 'Microsoft YaHei', sans-serif; }
+        .glass { background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); }
+        .gradient-text { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .card-hover { transition: all 0.3s ease; }
+        .card-hover:hover { transform: translateY(-4px); box-shadow: 0 20px 40px rgba(0,0,0,0.1); }
+        .slide-enter { animation: slideIn 0.3s ease; }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(-20px); } to { opacity: 1; transform: translateX(0); } }
+        input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        .markdown-body { line-height: 1.8; color: #333; }
+        .markdown-body h1 { font-size: 24px; font-weight: 700; margin: 24px 0 16px; padding-bottom: 8px; border-bottom: 2px solid #e5e7eb; }
+        .markdown-body h2 { font-size: 20px; font-weight: 600; margin: 20px 0 12px; color: #4f46e5; }
+        .markdown-body h3 { font-size: 16px; font-weight: 600; margin: 16px 0 8px; }
+        .markdown-body table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14px; }
+        .markdown-body th, .markdown-body td { border: 1px solid #e5e7eb; padding: 12px; text-align: left; }
+        .markdown-body th { background: #f9fafb; font-weight: 600; }
+        .markdown-body tr:nth-child(even) { background: #f9fafb; }
+        .markdown-body ul, .markdown-body ol { margin: 12px 0; padding-left: 24px; }
+        .markdown-body li { margin: 4px 0; }
+        .markdown-body code { background: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-size: 13px; }
+        .markdown-body blockquote { border-left: 4px solid #4f46e5; padding-left: 16px; margin: 16px 0; color: #666; }
+        .file-drop-zone { border: 2px dashed #d1d5db; border-radius: 12px; padding: 40px; text-align: center; transition: all 0.3s; }
+        .file-drop-zone.dragover { border-color: #4f46e5; background: #eef2ff; }
+        .file-drop-zone.has-file { border-color: #10b981; background: #ecfdf5; }
+        .editor-textarea { font-family: 'Monaco', 'Menlo', 'Consolas', monospace; line-height: 1.6; }
+        .diff-added { background: #d1fae5; color: #065f46; }
+        .diff-removed { background: #fee2e2; color: #991b1b; text-decoration: line-through; }
+        .version-tag { font-size: 11px; padding: 2px 8px; border-radius: 12px; }
+        .version-draft { background: #fef3c7; color: #92400e; }
+        .version-confirmed { background: #d1fae5; color: #065f46; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #a1a1a1; }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div id="app">
+        <!-- Loading State -->
+        <div v-if="!loaded" class="fixed inset-0 bg-white z-50 flex items-center justify-center">
+            <div class="text-center">
+                <div class="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto mb-4"></div>
+                <p class="text-gray-600">加载中...</p>
+            </div>
+        </div>
+        
+        <!-- Error State -->
+        <div v-if="loadError" class="fixed inset-0 bg-gray-50 z-50 flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl p-8 max-w-md w-full text-center shadow-xl">
+                <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg class="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                    </svg>
+                </div>
+                <h2 class="text-xl font-bold text-gray-800 mb-2">加载失败</h2>
+                <p class="text-gray-600 mb-6">无法加载必要的脚本资源，请检查网络连接。</p>
+                <button @click="location.reload()" class="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">刷新页面</button>
+            </div>
+        </div>
+
+        <!-- Header -->
+        <header class="glass fixed top-0 left-0 right-0 z-40 border-b border-gray-200">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between items-center h-16">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center text-white font-bold text-lg">HR</div>
+                        <div>
+                            <h1 class="text-xl font-bold gradient-text">OpenClaw HR</h1>
+                            <p class="text-xs text-gray-500">千播企业管理系统 v3.2</p>
+                        </div>
+                    </div>
+                    <nav class="flex space-x-1">
+                        <button v-for="tab in tabs" :key="tab.id" @click="currentTab = tab.id" 
+                            :class="currentTab === tab.id ? 'bg-indigo-50 text-indigo-600 border-indigo-200' : 'text-gray-600 hover:bg-gray-100'"
+                            class="px-4 py-2 rounded-lg text-sm font-medium transition-colors border border-transparent">
+                            {{ tab.name }}
+                        </button>
+                    </nav>
+                    <div class="flex items-center space-x-2">
+                        <button v-if="currentTab === 'budget'" @click="openImportModal" class="px-4 py-2 bg-orange-500 text-white rounded-lg text-sm hover:bg-orange-600 transition-colors flex items-center space-x-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                            <span>导入Excel</span>
+                        </button>
+                        <button @click="exportExcel" class="px-4 py-2 bg-green-500 text-white rounded-lg text-sm hover:bg-green-600 transition-colors flex items-center space-x-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                            <span>导出Excel</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="pt-20 pb-12">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                
+                <!-- Dashboard Tab -->
+                <div v-if="currentTab === 'dashboard'" class="slide-enter space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div class="bg-white rounded-2xl p-6 card-hover border border-gray-100">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-sm text-gray-500">总编制人数</p>
+                                    <p class="text-3xl font-bold text-gray-800 mt-1">{{ totalHeadcount }}</p>
+                                    <p class="text-xs text-gray-400 mt-1">编制 23 / 在岗 21</p>
+                                </div>
+                                <div class="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-blue-500">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-2xl p-6 card-hover border border-gray-100">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-sm text-gray-500">月度总预算</p>
+                                    <p class="text-3xl font-bold text-gray-800 mt-1">¥{{ formatNumber(totalBudget) }}</p>
+                                    <p class="text-xs text-red-500 mt-1">↑ 较上月 +3.5%</p>
+                                </div>
+                                <div class="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center text-red-500">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-2xl p-6 card-hover border border-gray-100">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-sm text-gray-500">销售指标</p>
+                                    <p class="text-3xl font-bold text-gray-800 mt-1">¥{{ formatNumber(totalRevenue) }}</p>
+                                    <p class="text-xs text-gray-400 mt-1">4月目标</p>
+                                </div>
+                                <div class="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center text-green-500">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-2xl p-6 card-hover border border-gray-100">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-sm text-gray-500">费销比</p>
+                                    <p class="text-3xl font-bold" :class="expenseRatio > 100 ? 'text-red-500' : 'text-green-500'">{{ expenseRatio }}%</p>
+                                    <p class="text-xs mt-1" :class="expenseRatio > 100 ? 'text-red-400' : 'text-green-400'">{{ expenseRatio > 100 ? '🔴 超支' : '🟢 健康' }}</p>
+                                </div>
+                                <div class="w-10 h-10 rounded-xl flex items-center justify-center" :class="expenseRatio > 100 ? 'bg-red-50 text-red-500' : 'bg-green-50 text-green-500'">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="bg-white rounded-2xl p-6 border border-gray-100">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4">费用结构分析</h3>
+                            <canvas id="costChart" height="250"></canvas>
+                        </div>
+                        <div class="bg-white rounded-2xl p-6 border border-gray-100">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4">各中心预算对比</h3>
+                            <canvas id="centerChart" height="250"></canvas>
+                        </div>
+                    </div>
+
+                    <div v-if="expenseRatio > 100" class="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-center space-x-3">
+                        <svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                        <div>
+                            <p class="font-medium text-red-800">预算预警</p>
+                            <p class="text-sm text-red-600">当前费销比 {{ expenseRatio }}%，超出收入目标 {{ formatNumber(totalBudget - totalRevenue) }} 元。建议优化投流费用或提升销售目标。</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Budget Tab -->
+                <div v-if="currentTab === 'budget'" class="slide-enter space-y-6">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <h2 class="text-2xl font-bold text-gray-800">预算编制与调整</h2>
+                            <p class="text-sm mt-1" :class="isEmptyMonth ? 'text-red-500' : (hasCurrentMonthData ? 'text-green-600' : 'text-orange-500')">
+                                {{ isEmptyMonth ? '⚠️ 1-3月为空数据期（公司尚未成立）' : (hasCurrentMonthData ? '✓ 已保存的预算数据' : '✎ 当前为空白数据，可自行填写或复制其他月份') }}
+                            </p>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <select v-model="selectedMonth" class="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500">
+                                <option v-for="m in 12" :key="m" :value="m">{{ m }}月</option>
+                            </select>
+                            
+                            <!-- 复制数据按钮 -->
+                            <div v-if="!isEmptyMonth && selectedMonth > 4" class="relative">
+                                <select @change="handleCopyFrom($event)" class="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 bg-white">
+                                    <option value="">复制数据自...</option>
+                                    <option v-for="m in availableSourceMonths" :key="m" :value="m">{{ m }}月</option>
+                                </select>
+                            </div>
+                            
+                            <button @click="resetBudget" class="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">重置</button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div v-for="center in centers" :key="center.id" class="bg-white rounded-2xl p-6 border border-gray-100 card-hover">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-lg font-semibold text-gray-800">{{ center.name }}</h3>
+                                <span class="text-sm text-gray-500">总监: {{ center.director }}</span>
+                            </div>
+                            
+                            <div class="space-y-4">
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="text-xs text-gray-500">销售指标</label>
+                                        <input v-model.number="center.revenue" type="number" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm">
+                                    </div>
+                                    <div>
+                                        <label class="text-xs text-gray-500">编制人数</label>
+                                        <input v-model.number="center.headcount" type="number" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm">
+                                    </div>
+                                </div>
+
+                                <div class="border-t border-gray-100 pt-4 space-y-3">
+                                    <div v-for="item in center.budgetItems" :key="item.code" class="flex justify-between items-center">
+                                        <span class="text-sm text-gray-600">{{ item.name }}</span>
+                                        <input v-model.number="item.amount" type="number" class="w-32 px-3 py-1 border border-gray-200 rounded text-sm text-right focus:ring-2 focus:ring-indigo-500">
+                                    </div>
+                                </div>
+
+                                <div class="border-t border-gray-100 pt-4 flex justify-between items-center">
+                                    <span class="font-medium text-gray-700">中心预算合计</span>
+                                    <span class="text-xl font-bold text-indigo-600">¥{{ formatNumber(getCenterTotal(center)) }}</span>
+                                </div>
+                                <div class="flex justify-between items-center text-sm">
+                                    <span class="text-gray-500">费销比</span>
+                                    <span class="font-medium" :class="getCenterRatio(center) > 100 ? 'text-red-500' : 'text-green-500'">{{ getCenterRatio(center) }}%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-2xl overflow-hidden border border-gray-100">
+                        <div class="px-6 py-4 border-b border-gray-100">
+                            <h3 class="text-lg font-semibold text-gray-800">预算明细汇总表</h3>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">科目</th>
+                                        <th v-for="center in centers" :key="center.id" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">{{ center.name }}</th>
+                                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">合计</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100">
+                                    <tr v-for="category in budgetCategories" :key="category.code" class="hover:bg-gray-50">
+                                        <td class="px-6 py-3 text-sm font-medium text-gray-800">{{ category.name }}</td>
+                                        <td v-for="center in centers" :key="center.id" class="px-6 py-3 text-sm text-gray-600 text-right">¥{{ formatNumber(getCategoryAmount(center, category.code)) }}</td>
+                                        <td class="px-6 py-3 text-sm font-bold text-gray-800 text-right">¥{{ formatNumber(getCategoryTotal(category.code)) }}</td>
+                                    </tr>
+                                    <tr class="bg-indigo-50">
+                                        <td class="px-6 py-3 text-sm font-bold text-indigo-800">费用合计</td>
+                                        <td v-for="center in centers" :key="center.id" class="px-6 py-3 text-sm font-bold text-indigo-800 text-right">¥{{ formatNumber(getCenterTotal(center)) }}</td>
+                                        <td class="px-6 py-3 text-sm font-bold text-indigo-800 text-right">¥{{ formatNumber(totalBudget) }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Organization Tab -->
+                <div v-if="currentTab === 'org'" class="slide-enter">
+                    <div class="bg-white rounded-2xl p-8 border border-gray-100">
+                        <h2 class="text-2xl font-bold text-gray-800 mb-6">组织架构图</h2>
+                        <div class="flex justify-center">
+                            <div class="space-y-8">
+                                <div class="flex justify-center">
+                                    <div class="bg-gradient-to-br from-indigo-500 to-purple-600 text-white px-6 py-4 rounded-xl text-center shadow-lg">
+                                        <p class="font-bold text-lg">总经理</p>
+                                        <p class="text-sm opacity-90">杨勇</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="flex justify-center">
+                                    <div class="border-l-2 border-gray-300 h-8"></div>
+                                </div>
+                                <div class="flex justify-center">
+                                    <div class="bg-gradient-to-br from-blue-500 to-indigo-600 text-white px-6 py-3 rounded-xl text-center shadow-lg">
+                                        <p class="font-bold">副总经理</p>
+                                        <p class="text-sm opacity-90">方明</p>
+                                    </div>
+                                </div>
+
+                                <div class="flex justify-center">
+                                    <div class="border-l-2 border-gray-300 h-8"></div>
+                                </div>
+                                <div class="grid grid-cols-4 gap-4">
+                                    <div v-for="center in centers" :key="center.id" class="space-y-2">
+                                        <div class="bg-white border-2 border-indigo-200 px-4 py-3 rounded-xl text-center shadow-sm hover:shadow-md transition-shadow cursor-pointer" @click="selectedCenter = center">
+                                            <p class="font-semibold text-indigo-800 text-sm">{{ center.name }}</p>
+                                            <p class="text-xs text-gray-500">{{ center.director }}</p>
+                                            <p class="text-xs text-gray-400 mt-1">{{ center.headcount }}人</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div v-if="selectedCenter" class="mt-8 p-6 bg-gray-50 rounded-xl">
+                            <div class="flex justify-between items-start mb-4">
+                                <div>
+                                    <h3 class="text-xl font-bold text-gray-800">{{ selectedCenter.name }}</h3>
+                                    <p class="text-gray-500">总监: {{ selectedCenter.director }}</p>
+                                </div>
+                                <button @click="selectedCenter = null" class="text-gray-400 hover:text-gray-600">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                </button>
+                            </div>
+                            <div class="grid grid-cols-3 gap-4">
+                                <div class="bg-white p-4 rounded-lg">
+                                    <p class="text-sm text-gray-500">编制人数</p>
+                                    <p class="text-2xl font-bold text-gray-800">{{ selectedCenter.headcount }}</p>
+                                </div>
+                                <div class="bg-white p-4 rounded-lg">
+                                    <p class="text-sm text-gray-500">月度预算</p>
+                                    <p class="text-2xl font-bold text-indigo-600">¥{{ formatNumber(getCenterTotal(selectedCenter)) }}</p>
+                                </div>
+                                <div class="bg-white p-4 rounded-lg">
+                                    <p class="text-sm text-gray-500">销售指标</p>
+                                    <p class="text-2xl font-bold text-green-600">¥{{ formatNumber(selectedCenter.revenue) }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Policies Tab -->
+                <div v-if="currentTab === 'policies'" class="slide-enter space-y-4">
+                    <div class="flex justify-between items-center mb-6">
+                        <div>
+                            <h2 class="text-2xl font-bold text-gray-800">制度文件中心</h2>
+                            <p class="text-sm text-gray-500 mt-1">点击制度卡片查看详情，支持在线编辑和版本管理</p>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button @click="showVersionHistory = true" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50 flex items-center space-x-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                <span>版本历史</span>
+                            </button>
+                            <button @click="exportAllPolicies" class="px-4 py-2 bg-indigo-500 text-white rounded-lg text-sm hover:bg-indigo-600 flex items-center space-x-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                                <span>导出全部制度</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="flex space-x-4 mb-4 text-sm">
+                        <div class="flex items-center space-x-2">
+                            <span class="version-tag version-draft">草稿</span>
+                            <span class="text-gray-500">待确认</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="version-tag version-confirmed">已确认</span>
+                            <span class="text-gray-500">已生效</span>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div v-for="policy in policies" :key="policy.id" class="bg-white rounded-xl p-5 border border-gray-100 card-hover cursor-pointer relative" @click="openPolicy(policy)">
+                            <div class="flex items-start justify-between">
+                                <div class="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold" :class="policy.color">{{ policy.id }}</div>
+                                <div class="flex flex-col items-end space-y-1">
+                                    <span class="text-xs px-2 py-1 rounded-full" :class="policy.category === 'core' ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-600'">{{ policy.category === 'core' ? '核心' : '补充' }}</span>
+                                    <span :class="getPolicyStatusClass(policy)">{{ getPolicyStatus(policy) }}</span>
+                                </div>
+                            </div>
+                            <h3 class="mt-3 font-semibold text-gray-800">{{ policy.title }}</h3>
+                            <p class="mt-1 text-sm text-gray-500 line-clamp-2">{{ policy.desc }}</p>
+                            
+                            <div class="mt-3 flex items-center justify-between">
+                                <span class="text-xs text-gray-400">{{ getPolicyLastModified(policy) }}</span>
+                                <span class="text-xs text-indigo-500 font-medium flex items-center">点击查看/编辑 →</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Analysis Tab -->
+                <div v-if="currentTab === 'analysis'" class="slide-enter space-y-6">
+                    <h2 class="text-2xl font-bold text-gray-800">成本分析与预测</h2>
+                    
+                    <div class="bg-white rounded-2xl p-6 border border-gray-100">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">盈亏平衡分析</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div class="p-4 bg-gray-50 rounded-xl">
+                                <p class="text-sm text-gray-500">固定成本（月）</p>
+                                <p class="text-2xl font-bold text-gray-800">¥{{ formatNumber(fixedCost) }}</p>
+                                <p class="text-xs text-gray-400 mt-1">人工+办公</p>
+                            </div>
+                            <div class="p-4 bg-gray-50 rounded-xl">
+                                <p class="text-sm text-gray-500">盈亏平衡点</p>
+                                <p class="text-2xl font-bold text-indigo-600">¥{{ formatNumber(breakevenPoint) }}</p>
+                                <p class="text-xs text-gray-400 mt-1">月收入目标</p>
+                            </div>
+                            <div class="p-4 bg-gray-50 rounded-xl">
+                                <p class="text-sm text-gray-500">当前缺口</p>
+                                <p class="text-2xl font-bold" :class="revenueGap > 0 ? 'text-red-500' : 'text-green-500'">¥{{ formatNumber(Math.abs(revenueGap)) }}</p>
+                                <p class="text-xs mt-1" :class="revenueGap > 0 ? 'text-red-400' : 'text-green-400'">{{ revenueGap > 0 ? '需增加' : '已达标' }}</p>
+                            </div>
+                        </div>
+                        <div class="mt-6">
+                            <canvas id="breakevenChart" height="200"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-2xl p-6 border border-gray-100">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">人效分析</h3>
+                        <div class="overflow-x-auto">
+                            <table class="w-full">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">中心</th>
+                                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">人数</th>
+                                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">人均收入</th>
+                                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">人均成本</th>
+                                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">人效比</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100">
+                                    <tr v-for="center in centers" :key="center.id" class="hover:bg-gray-50">
+                                        <td class="px-4 py-3 text-sm font-medium text-gray-800">{{ center.name }}</td>
+                                        <td class="px-4 py-3 text-sm text-gray-600 text-right">{{ center.headcount }}</td>
+                                        <td class="px-4 py-3 text-sm text-gray-600 text-right">¥{{ formatNumber(center.revenue / center.headcount) }}</td>
+                                        <td class="px-4 py-3 text-sm text-gray-600 text-right">¥{{ formatNumber(getCenterTotal(center) / center.headcount) }}</td>
+                                        <td class="px-4 py-3 text-sm text-right">
+                                            <span class="px-2 py-1 rounded-full text-xs" :class="getEfficiencyRatio(center) >= 3 ? 'bg-green-100 text-green-700' : getEfficiencyRatio(center) >= 2 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'">{{ getEfficiencyRatio(center).toFixed(2) }}</span>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Policy Editor Modal -->
+        <div v-if="showPolicyModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" @click.self="closePolicyModal">
+            <div class="bg-white rounded-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+                <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
+                    <div class="flex items-center space-x-4">
+                        <h3 class="text-xl font-bold text-gray-800">{{ selectedPolicy?.title }}</h3>
+                        <span :class="getPolicyStatusClass(selectedPolicy)">{{ getPolicyStatus(selectedPolicy) }}</span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <button v-if="!isEditing" @click="startEditing" class="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors flex items-center space-x-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                            <span>编辑</span>
+                        </button>
+                        <button @click="closePolicyModal" class="text-gray-400 hover:text-gray-600">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="flex-1 overflow-y-auto">
+                    <div v-if="!isEditing" class="p-6">
+                        <div class="markdown-body prose max-w-none" v-html="selectedPolicy?.renderedContent"></div>
+                    </div>
+                    
+                    <div v-else class="flex flex-col h-full">
+                        <div class="flex-1 flex overflow-hidden">
+                            <div class="w-1/2 border-r border-gray-200 flex flex-col overflow-hidden">
+                                <div class="px-4 py-2 bg-gray-100 border-b border-gray-200 text-sm font-medium text-gray-600">Markdown 编辑器</div>
+                                <textarea v-model="editingContent" class="flex-1 p-4 editor-textarea resize-none focus:outline-none overflow-y-auto" placeholder="在此编辑制度内容..."></textarea>
+                            </div>
+                            
+                            <div class="w-1/2 flex flex-col overflow-hidden">
+                                <div class="px-4 py-2 bg-gray-100 border-b border-gray-200 text-sm font-medium text-gray-600 flex justify-between">
+                                    <span>实时预览</span>
+                                    <span class="text-xs text-gray-400">支持 Markdown 语法</span>
+                                </div>
+                                <div class="flex-1 overflow-y-auto p-4">
+                                    <div class="markdown-body prose max-w-none" v-html="renderedEditingContent"></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="px-6 py-3 border-t border-gray-200 bg-gray-50 flex justify-between">
+                            <div class="text-sm text-gray-500">上次保存: {{ getPolicyLastModified(selectedPolicy) }}</div>
+                            <div class="flex space-x-2">
+                                <button @click="cancelEditing" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors">取消</button>
+                                <button @click="saveAsDraft" class="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors">保存草稿</button>
+                                <button @click="saveAndConfirm" class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors flex items-center space-x-2">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                    <span>保存并确认</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div v-if="!isEditing" class="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-between">
+                    <div class="flex space-x-2">
+                        <button @click="downloadPolicyMd" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors flex items-center space-x-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                            <span>下载Markdown</span>
+                        </button>
+                    </div>
+                    <div class="flex space-x-2">
+                        <button v-if="selectedPolicy?.status === 'draft'" @click="confirmPolicy" class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors flex items-center space-x-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            <span>确认生效</span>
+                        </button>
+                        <button @click="closePolicyModal" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">关闭</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Version History Modal -->
+        <div v-if="showVersionHistory" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" @click.self="showVersionHistory = false">
+            <div class="bg-white rounded-2xl max-w-3xl w-full max-h-[80vh] overflow-hidden flex flex-col">
+                <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                    <h3 class="text-xl font-bold text-gray-800">版本历史</h3>
+                    <button @click="showVersionHistory = false" class="text-gray-400 hover:text-gray-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+                <div class="flex-1 overflow-y-auto p-6">
+                    <div v-if="versionHistory.length === 0" class="text-center text-gray-500 py-12">暂无版本历史记录</div>
+                    <div v-else class="space-y-4">
+                        <div v-for="(version, index) in versionHistory" :key="index" class="border border-gray-200 rounded-lg p-4">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="font-medium text-gray-800">{{ version.title }}</p>
+                                    <p class="text-sm text-gray-500">{{ version.time }}</p>
+                                </div>
+                                <span class="version-tag" :class="version.status === 'confirmed' ? 'version-confirmed' : 'version-draft'">{{ version.status === 'confirmed' ? '已确认' : '草稿' }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Import Excel Modal -->
+        <div v-if="showImportModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" @click.self="showImportModal = false">
+            <div class="bg-white rounded-2xl max-w-lg w-full overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                    <h3 class="text-xl font-bold text-gray-800">导入预算Excel</h3>
+                    <button @click="showImportModal = false" class="text-gray-400 hover:text-gray-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+                <div class="p-6">
+                    <div class="file-drop-zone" :class="{ 'dragover': isDragging, 'has-file': importFile }" @dragover.prevent="isDragging = true" @dragleave="isDragging = false" @drop.prevent="handleFileDrop" @click="$refs.fileInput.click()">
+                        <input ref="fileInput" type="file" accept=".xlsx,.xls,.csv" class="hidden" @change="handleFileSelect">
+                        
+                        <div v-if="!importFile">
+                            <svg class="w-12 h-12 mx-auto text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                            <p class="text-gray-600 font-medium">点击或拖拽上传Excel文件</p>
+                            <p class="text-sm text-gray-400 mt-1">支持 .xlsx, .xls, .csv 格式</p>
+                        </div>
+                        
+                        <div v-else class="text-center">
+                            <svg class="w-12 h-12 mx-auto text-green-500 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            <p class="text-green-600 font-medium">{{ importFile ? importFile.name : '' }}</p>
+                            <p class="text-sm text-gray-400 mt-1">{{ importFile ? (importFile.size / 1024).toFixed(2) : 0 }} KB</p>
+                        </div>
+                    </div>
+
+                    <div v-if="importError" class="mt-4 p-3 bg-red-50 text-red-600 rounded-lg text-sm">{{ importError }}</div>
+
+                    <div class="mt-4 text-sm text-gray-500">
+                        <p class="font-medium mb-2">Excel格式要求：</p>
+                        <ul class="list-disc list-inside space-y-1">
+                            <li>第一行：中心名称（基地管理中心、本地生活运营中心等）</li>
+                            <li>第一列：预算科目（工资及奖金、投流费用等）</li>
+                            <li>数据区域：对应的预算金额</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end space-x-2">
+                    <button @click="showImportModal = false" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors">取消</button>
+                    <button @click="processImport" :disabled="!importFile" class="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">确认导入</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Default policy contents
+        const defaultPolicyContents = {
+            '01': `# 报销流程制度\n\n## 1. 目的\n\n规范公司费用报销流程，明确报销标准与审批权限，提高财务管理效率，确保公司资金安全。\n\n## 2. 适用范围\n\n适用于公司全体员工因公务产生的各项费用报销。\n\n## 3. 报销分类与标准\n\n### 3.1 差旅费用\n| 项目 | 标准 | 说明 |\n|------|------|------|\n| 交通费 | 实报实销 | 凭票据报销，优先选择经济舱/二等座 |\n| 住宿费 | ≤300元/晚 | 一线城市≤400元，凭发票报销 |\n| 餐饮补贴 | 100元/天 | 无需发票，按出差天数计算 |\n| 市内交通 | 50元/天 | 无需发票，包干使用 |\n\n### 3.2 办公费用\n| 项目 | 标准 | 审批要求 |\n|------|------|----------|\n| 办公用品 | ≤200元/次 | 部门负责人审批 |\n| 快递费 | 实报实销 | 需注明事由 |\n| 通讯费 | 100元/月 | 提供话费账单 |\n| 网络费 | 实报实销 | 仅限工作场所 |\n\n### 3.3 业务招待费\n| 招待对象 | 人均标准 | 审批要求 |\n|----------|----------|----------|\n| 普通客户 | ≤200元/人 | 中心总监审批 |\n| 重要客户 | ≤500元/人 | 副总经理审批 |\n| 政府/合作方 | ≤800元/人 | 总经理审批 |\n\n## 4. 报销流程\n\n1. **整理票据** - 收集所有原始发票/收据\n2. **填写报销单** - 登录HR系统填写明细\n3. **直属上级审批** - 核实费用真实性\n4. **财务审核** - 审核票据合规性\n5. **打款到账** - 3个工作日内完成\n\n## 5. 审批权限\n\n| 报销金额 | 审批人 |\n|----------|--------|\n| ≤1000元 | 直属上级 |\n| 1001-5000元 | 中心总监 |\n| 5001-20000元 | 副总经理 |\n| >20000元 | 总经理 |\n\n## 6. 报销时限\n\n- 一般费用：发生后30天内\n- 差旅费用：出差结束后7天内\n\n## 7. 附则\n\n本制度由人事行政财务中心制定并解释，自发布之日起执行。`,
+
+            '02': `# 费用申请流程制度\n\n## 1. 目的\n\n规范公司各项费用支出的事前申请流程，强化预算管控，确保资金使用的计划性和合规性。\n\n## 2. 适用范围\n\n适用于预算内的各类费用支出申请。\n\n## 3. 费用申请分类\n\n### 3.1 按金额分类\n| 级别 | 金额范围 | 审批层级 |\n|------|----------|----------|\n| 小额 | ≤1000元 | 部门负责人 |\n| 一般 | 1001-5000元 | 中心总监 |\n| 大额 | 5001-20000元 | 副总经理 |\n| 重大 | >20000元 | 总经理 |\n\n## 4. 申请流程\n\n1. **填写费用申请单** - 选择费用类型、填写金额、说明用途\n2. **预算核对** - 系统自动校验预算余额\n3. **逐级审批** - 按金额级别自动流转\n4. **财务备案** - 审批通过后锁定预算\n5. **执行支出** - 凭审批单执行\n6. **报销核销** - 费用发生后7天内提交报销\n\n## 5. 各中心预算科目\n\n### 基地管理中心（月度 ¥128,500）\n- 人工费用：¥42,500\n- 办公费用：¥5,000\n- 公务活动费：¥49,000\n- 其他：¥32,000\n\n### 本地生活运营中心（月度 ¥153,650）\n- 人工费用：¥34,250\n- 办公费用：¥2,300\n- 公务活动费：¥71,500\n- 其他：¥45,600\n\n## 6. 附则\n\n本制度由人事行政财务中心制定并解释。`,
+
+            '03': `# 账号使用流程制度\n\n## 1. 目的\n\n规范公司各类账号的申请、使用、管理和注销流程，保障公司数字资产安全。\n\n## 2. 适用范围\n\n适用于公司所有业务账号，包括直播平台账号、社交媒体账号、广告投放账号等。\n\n## 3. 账号分类管理\n\n### 3.1 按重要性分级\n| 级别 | 定义 | 示例 | 管理要求 |\n|------|------|------|----------|\n| A级 | 核心资产 | 主直播账号 | 总经理直管，双人授权 |\n| B级 | 重要资产 | 分账号、投放账号 | 中心总监管理 |\n| C级 | 一般资产 | 测试号 | 部门负责人管理 |\n\n## 4. 账号申请流程\n\n1. 提交《账号申请表》\n2. 评估审核\n3. 注册/获取账号\n4. 信息备案\n5. 权限分配\n\n## 5. 账号使用规范\n\n- 账号仅限工作用途，禁止私用\n- 密码长度≥12位，每90天更换\n- 不得擅自修改账号关键信息\n\n## 6. 账号费用管理\n\n| 中心 | 账号费用 | 投流费用 | 视频费用 | 音频费用 |\n|------|----------|----------|----------|----------|\n| 基地管理中心 | ¥9,000 | ¥40,000 | ¥3,000 | ¥18,000 |\n| 本地生活运营中心 | ¥16,500 | ¥50,000 | ¥2,500 | ¥3,600 |\n\n## 7. 附则\n\n本制度由人事行政财务中心制定并解释。`,
+
+            '04': `# 出差流程制度\n\n## 1. 目的\n\n规范员工因公出差的申请、审批、报销等流程，明确出差标准。\n\n## 2. 适用范围\n\n适用于公司全体员工因公务需要离开常驻地的工作活动。\n\n## 3. 出差标准\n\n### 3.1 交通工具\n| 职级 | 飞机 | 火车 |\n|------|------|------|\n| 总经理/副总经理 | 商务舱 | 一等座 |\n| 中心总监 | 经济舱 | 一等座 |\n| 部门经理及以下 | 经济舱（4h以上） | 二等座 |\n\n### 3.2 住宿标准\n| 城市级别 | 总经理 | 中心总监 | 经理及以下 |\n|----------|--------|----------|------------|\n| 一线城市 | ≤800 | ≤500 | ≤400 |\n| 二线城市 | ≤600 | ≤400 | ≤300 |\n| 三线及以下 | ≤500 | ≤350 | ≤250 |\n\n### 3.3 餐饮补贴\n| 职级 | 一线城市 | 其他城市 |\n|------|----------|----------|\n| 全体 | 150元/天 | 120元/天 |\n\n## 4. 出差申请流程\n\n1. 填写出差申请表（提前3天）\n2. 行程确认\n3. 审批流程\n4. 出差准备\n5. 执行出差\n\n## 5. 审批权限\n\n| 出差类型 | 审批人 |\n|----------|--------|\n| 本地出差 | 部门负责人 |\n| 短途出差 | 中心总监 |\n| 长途出差 | 副总经理 |\n| 国际出差 | 总经理 |\n\n## 6. 附则\n\n本制度由人事行政财务中心制定并解释。`,
+
+            '05': `# 人事扩编流程制度\n\n## 1. 目的\n\n规范公司人员编制管理，科学合理地控制人力成本。\n\n## 2. 适用范围\n\n适用于公司各部门、各中心因业务发展需要增加人员编制。\n\n## 3. 编制管理\n\n### 当前编制情况\n| 中心 | 编制 | 在岗 |\n|------|------|------|\n| 基地管理中心 | 10 | 10 |\n| 本地生活运营中心 | 6 | 6 |\n| 人事行政财务中心 | 3 | 3 |\n| 商务中心 | 2 | 2 |\n| **合计** | **23** | **21** |\n\n## 4. 扩编申请流程\n\n1. 提交扩编申请表\n2. 编制评估\n3. 预算审核\n4. 逐级审批\n5. 招聘实施\n6. 到岗确认\n\n## 5. 审批权限\n\n| 扩编人数 | 审批人 |\n|----------|--------|\n| 1-2人 | 副总经理 |\n| 3-5人 | 总经理 |\n| >5人 | 总经理+董事会 |\n\n## 6. 月度人力成本预算\n\n| 中心 | 预算金额 |\n|------|----------|\n| 基地管理中心 | ¥42,500 |\n| 本地生活运营中心 | ¥34,250 |\n| 人事行政财务中心 | ¥25,000 |\n| 商务中心 | ¥30,000 |\n\n## 7. 附则\n\n本制度由人事行政财务中心制定并解释。`,
+
+            '06': `# 设备管理流程制度\n\n## 1. 目的\n\n规范公司固定资产及设备的全生命周期管理。\n\n## 2. 适用范围\n\n适用于公司所有固定资产及办公设备。\n\n## 3. 设备分类\n\n| 类别 | 价值标准 | 管理要求 |\n|------|----------|----------|\n| A类 | ≥10000元 | 专项登记，年度盘点 |\n| B类 | 5000-9999元 | 部门台账，半年盘点 |\n| C类 | 2000-4999元 | 统一登记，季度盘点 |\n\n## 4. 设备采购\n\n### 审批权限\n| 设备类别 | 审批人 |\n|----------|--------|\n| C类 | 中心总监 |\n| B类 | 副总经理 |\n| A类 | 总经理 |\n\n## 5. 设备领用\n\n- 新员工入职可领用标配设备\n- 领用需签署《设备领用单》\n- 明确设备保管责任人\n\n## 6. 设备维修\n\n- 保修期内联系售后免费维修\n- 维修费用<设备价值30%安排维修\n- 维修费用≥设备价值30%申请报废换新\n\n## 7. 附则\n\n本制度由人事行政财务中心制定并解释。`,
+
+            '07': `# 招聘与入职流程制度\n\n## 1. 目的\n\n规范人员招聘和入职流程，确保招聘工作的有效性。\n\n## 2. 适用范围\n\n适用于公司所有正式员工。\n\n## 3. 招聘流程\n\n1. 需求确认（扩编审批已完成）\n2. 发布职位\n3. 简历筛选\n4. 电话面试\n5. 初试（用人部门）\n6. 复试（中心总监）\n7. 背景调查\n8. 录用审批\n9. 发放Offer\n\n## 4. 入职流程\n\n### 入职当天\n- 9:00-9:30 入职登记，签署劳动合同\n- 9:30-10:30 公司介绍，制度培训\n- 10:30-11:30 部门介绍，工作交接\n- 11:30-12:00 熟悉环境，领取办公用品\n- 下午 开展工作，导师带教\n\n### 试用期管理\n- 试用期：3个月\n- 导师制：指定导师一对一指导\n- 转正评估：试用期结束前进行\n\n## 5. 附则\n\n本制度由人事行政财务中心制定并解释。`,
+
+            '08': `# 考勤与休假流程制度\n\n## 1. 目的\n\n规范公司考勤管理和休假制度，维护正常工作秩序。\n\n## 2. 适用范围\n\n适用于公司全体员工。\n\n## 3. 工作时间\n\n- 工作日：周一至周五\n- 工作时间：9:00-12:00，13:30-18:30\n- 午休时间：12:00-13:30\n\n## 4. 考勤管理\n\n### 迟到早退\n| 情况 | 处理 |\n|------|------|\n| 迟到≤15分钟 | 每月3次内免扣 |\n| 迟到15-30分钟 | 扣0.5小时工资 |\n| 迟到30-60分钟 | 扣1小时工资 |\n| 迟到>60分钟 | 按半天事假 |\n\n## 5. 休假类型\n\n| 类型 | 天数/标准 |\n|------|----------|\n| 年假 | 5-15天（按工龄） |\n| 病假 | 需医院证明 |\n| 事假 | 无薪 |\n| 婚假 | 3+10天 |\n| 产假 | 按国家规定 |\n| 丧假 | 3天 |\n\n## 6. 请假流程\n\n提交申请 → 直属上级审批 → 中心总监审批（3天以上） → 人事备案\n\n## 7. 附则\n\n本制度由人事行政财务中心制定并解释。`,
+
+            '09': `# 薪酬福利管理制度\n\n## 1. 目的\n\n建立科学合理的薪酬福利体系，吸引和留住优秀人才。\n\n## 2. 适用范围\n\n适用于公司全体正式员工。\n\n## 3. 薪酬结构\n\n总薪酬 = 基本工资 + 绩效工资 + 奖金 + 补贴 + 福利\n\n## 4. 薪酬等级\n\n| 职级 | 岗位示例 | 月薪范围 |\n|------|----------|----------|\n| P1 | 专员/助理 | 4K-6K |\n| P2 | 高级专员 | 6K-8K |\n| P3 | 主管 | 8K-12K |\n| M1 | 经理 | 12K-18K |\n| M2 | 高级经理 | 18K-25K |\n| D1 | 总监 | 25K-35K |\n| D2 | 副总经理 | 35K-50K |\n\n## 5. 补贴标准\n\n| 类型 | 标准 |\n|------|------|\n| 通讯补贴 | 100元/月 |\n| 餐补 | 20元/工作日 |\n| 交通补贴 | 200元/月 |\n| 高温补贴 | 300元/月（6-9月） |\n\n## 6. 公司福利\n\n- 补充医疗保险\n- 年度体检\n- 节日福利\n- 生日福利\n- 团建经费（每人每年2000元）\n- 培训学习\n\n## 7. 附则\n\n本制度由人事行政财务中心制定并解释。`,
+
+            '10': `# 绩效考核流程制度\n\n## 1. 目的\n\n建立科学的绩效管理体系，客观评价员工工作表现。\n\n## 2. 适用范围\n\n适用于公司全体员工。\n\n## 3. 考核周期\n\n- 月度考核：运营、销售等岗位\n- 季度考核：全体\n- 年度考核：全体\n\n## 4. 考核内容\n\n- KPI（关键绩效指标）：70%\n- 行为评价（价值观/能力）：20%\n- 重点工作/项目：10%\n\n## 5. 评价等级\n\n| 等级 | 分数 | 比例 |\n|------|------|------|\n| S-卓越 | 95-100 | 5% |\n| A-优秀 | 85-94 | 20% |\n| B-良好 | 70-84 | 60% |\n| C-待改进 | 60-69 | 10% |\n| D-不合格 | <60 | 5% |\n\n## 6. 结果应用\n\n- 绩效工资挂钩\n- 晋升调薪参考\n- 培训发展\n- 淘汰机制（连续2次D解除合同）\n\n## 7. 附则\n\n本制度由人事行政财务中心制定并解释。`,
+
+            '11': `# 培训管理流程制度\n\n## 1. 目的\n\n建立系统的培训体系，提升员工能力素质。\n\n## 2. 适用范围\n\n适用于公司全体员工。\n\n## 3. 培训类型\n\n- 新员工培训\n- 专业技能培训\n- 管理能力培训\n- 通用能力培训\n\n## 4. 培训方式\n\n| 方式 | 说明 |\n|------|------|\n| 内部培训 | 公司内部讲师授课 |\n| 外部培训 | 参加外部机构培训 |\n| 线上学习 | 在线课程学习 |\n| 导师制 | 一对一指导 |\n\n## 5. 费用管理\n\n- 内部培训：公司承担\n- 外部培训：按年度预算执行\n- 个人发展培训：可申请补贴\n\n## 6. 培训协议\n\n外部培训费用≥5000元需签署《培训协议》，约定服务期。\n\n## 7. 附则\n\n本制度由人事行政财务中心制定并解释。`,
+
+            '12': `# 离职交接流程制度\n\n## 1. 目的\n\n规范员工离职流程，确保工作顺利交接。\n\n## 2. 适用范围\n\n适用于公司全体员工的离职管理。\n\n## 3. 离职类型\n\n- 辞职（员工主动）\n- 协商解除\n- 辞退\n- 合同到期\n- 退休\n\n## 4. 辞职流程\n\n1. 提交辞职申请\n2. 上级沟通\n3. 审批\n4. 工作交接\n5. 离职面谈\n6. 手续办理\n\n## 5. 提前通知期\n\n- 试用期：提前3天\n- 正式员工：提前30天\n\n## 6. 工作交接\n\n- 工作资料\n- 客户资源\n- 项目进度\n- 公司资产\n- 财务事项\n\n## 7. 附则\n\n本制度由人事行政财务中心制定并解释。`,
+
+            '13': `# 合同管理流程制度\n\n## 1. 目的\n\n规范劳动合同的签订、变更、续签和终止流程。\n\n## 2. 适用范围\n\n适用于公司全体员工的劳动合同管理。\n\n## 3. 合同类型\n\n| 类型 | 期限 |\n|------|------|\n| 固定期限 | 3年 |\n| 无固定期限 | 连续两次续签后 |\n| 试用期 | 3-6个月 |\n\n## 4. 签订流程\n\n1. 人事准备劳动合同文本\n2. 双方协商确认条款\n3. 当面签署，一式两份\n4. 公司盖章\n\n## 5. 合同变更\n\n岗位调整、薪酬变更等需签署变更协议。\n\n## 6. 合同续签\n\n- 合同到期前30天启动续签流程\n- 不续签需提前30天书面通知\n\n## 7. 附则\n\n本制度由人事行政财务中心制定并解释。`,
+
+            '14': `# 信息安全与保密制度\n\n## 1. 目的\n\n保护公司商业秘密和敏感信息，防范信息安全风险。\n\n## 2. 适用范围\n\n适用于公司全体员工及外包人员。\n\n## 3. 保密信息范围\n\n- 商业秘密：经营策略、客户信息、财务数据\n- 技术秘密：算法、数据、系统架构\n- 账号信息：各类平台账号、密码\n- 人员信息：员工档案、薪酬信息\n\n## 4. 保密义务\n\n- 严格保守公司秘密\n- 未经授权不得对外披露\n- 不得用于个人目的\n- 离职后继续承担保密义务\n\n## 5. 信息安全\n\n- 密码定期更换\n- 不共享账号密码\n- 敏感文件加密存储\n\n## 6. 泄密处理\n\n| 情形 | 处理 |\n|------|------|\n| 过失泄密 | 警告，赔偿损失 |\n| 故意泄密 | 辞退，追究法律责任 |\n\n## 7. 附则\n\n本制度由人事行政财务中心制定并解释。`,
+
+            '15': `# 固定资产管理制度\n\n## 1. 目的\n\n规范公司固定资产管理，确保资产安全完整。\n\n## 2. 适用范围\n\n适用于公司所有固定资产（价值≥2000元）。\n\n## 3. 资产分类\n\n| 类别 | 折旧年限 |\n|------|----------|\n| 电子设备 | 5年 |\n| 办公家具 | 5年 |\n| 运输工具 | 4年 |\n\n## 4. 管理职责\n\n- 行政中心：资产台账管理\n- 使用部门：日常使用保管\n- 财务中心：账务处理\n\n## 5. 资产盘点\n\n- 每季度盘点一次\n- 年终全面盘点\n\n## 6. 资产处置\n\n达到使用年限、技术淘汰或严重损坏可申请报废。\n\n## 7. 附则\n\n本制度由人事行政财务中心制定并解释。`
+        };
+
+        // Wait for Vue to be available
+        function initApp() {
+            if (typeof Vue === 'undefined' || typeof marked === 'undefined') {
+                document.getElementById('app').innerHTML = '<div style="padding:40px;text-align:center;font-family:sans-serif;"><h2>⚠️ 加载失败</h2><p>无法加载必要的脚本资源，请检查网络连接。</p><button onclick="location.reload()" style="padding:10px 20px;margin-top:20px;cursor:pointer;">刷新页面</button></div>';
+                return;
+            }
+
+            const { createApp } = Vue;
+
+            createApp({
+                data() {
+                    return {
+                        loaded: false,
+                        loadError: false,
+                        currentTab: 'dashboard',
+                        selectedMonth: 4,
+                        selectedCenter: null,
+                        showPolicyModal: false,
+                        showImportModal: false,
+                        showVersionHistory: false,
+                        selectedPolicy: null,
+                        isEditing: false,
+                        editingContent: '',
+                        importFile: null,
+                        importError: '',
+                        isDragging: false,
+                        versionHistory: [],
+                        policyContents: {},
+                        policyStates: {},
+                        tabs: [
+                            { id: 'dashboard', name: '数据看板' },
+                            { id: 'budget', name: '预算管理' },
+                            { id: 'org', name: '组织架构' },
+                            { id: 'policies', name: '制度文件' },
+                            { id: 'analysis', name: '成本分析' }
+                        ],
+                        // 多月份预算数据存储
+                        monthlyBudgets: {},
+                        // 当前显示的预算数据（根据月份切换）
+                        currentCenters: [],
+                        budgetCategories: [
+                            { code: 'salary', name: '工资及奖金' },
+                            { code: 'insurance', name: '社保公积金' },
+                            { code: 'office', name: '办公费用' },
+                            { code: 'utilities', name: '网电费' },
+                            { code: 'rent', name: '房租费' },
+                            { code: 'phone', name: '通讯费' },
+                            { code: 'express', name: '快递费' },
+                            { code: 'travel', name: '差旅费' },
+                            { code: 'entertain', name: '业务招待费' },
+                            { code: 'account', name: '账号费用' },
+                            { code: 'ads', name: '投流费用' },
+                            { code: 'training', name: '培训费' },
+                            { code: 'software', name: '软件服务费' },
+                            { code: 'software1', name: '无人直播软件' },
+                            { code: 'software2', name: '其他软件' },
+                            { code: 'video', name: '视频制作费' },
+                            { code: 'audio', name: '音频制作费' }
+                        ],
+                        policies: [
+                            { id: '01', title: '报销流程制度', desc: '规范费用报销流程，明确报销标准与审批权限', category: 'core', color: 'bg-blue-500' },
+                            { id: '02', title: '费用申请流程制度', desc: '规范各项费用支出的事前申请流程', category: 'core', color: 'bg-blue-500' },
+                            { id: '03', title: '账号使用流程制度', desc: '规范各类账号的申请、使用、管理和注销', category: 'core', color: 'bg-blue-500' },
+                            { id: '04', title: '出差流程制度', desc: '规范员工因公出差的申请、审批、报销', category: 'core', color: 'bg-blue-500' },
+                            { id: '05', title: '人事扩编流程制度', desc: '规范人员编制管理和扩充流程', category: 'core', color: 'bg-blue-500' },
+                            { id: '06', title: '设备管理流程制度', desc: '规范固定资产及设备的全生命周期管理', category: 'core', color: 'bg-blue-500' },
+                            { id: '07', title: '招聘与入职流程制度', desc: '规范人员招聘和入职管理', category: 'supp', color: 'bg-gray-500' },
+                            { id: '08', title: '考勤与休假流程制度', desc: '规范考勤管理和休假制度', category: 'supp', color: 'bg-gray-500' },
+                            { id: '09', title: '薪酬福利管理制度', desc: '建立科学合理的薪酬福利体系', category: 'supp', color: 'bg-gray-500' },
+                            { id: '10', title: '绩效考核流程制度', desc: '建立科学的绩效管理体系', category: 'supp', color: 'bg-gray-500' },
+                            { id: '11', title: '培训管理流程制度', desc: '建立系统的培训体系', category: 'supp', color: 'bg-gray-500' },
+                            { id: '12', title: '离职交接流程制度', desc: '规范员工离职流程和工作交接', category: 'supp', color: 'bg-gray-500' },
+                            { id: '13', title: '合同管理流程制度', desc: '规范劳动合同的签订和管理', category: 'supp', color: 'bg-gray-500' },
+                            { id: '14', title: '信息安全与保密制度', desc: '保护公司商业秘密和敏感信息', category: 'supp', color: 'bg-gray-500' },
+                            { id: '15', title: '固定资产管理制度', desc: '规范固定资产管理', category: 'supp', color: 'bg-gray-500' }
+                        ]
+                    };
+                },
+                computed: {
+                    centers() {
+                        return this.currentCenters;
+                    },
+                    totalBudget() {
+                        return this.centers.reduce((sum, c) => sum + this.getCenterTotal(c), 0);
+                    },
+                    totalRevenue() {
+                        return this.centers.reduce((sum, c) => sum + c.revenue, 0);
+                    },
+                    totalHeadcount() {
+                        return this.centers.reduce((sum, c) => sum + c.headcount, 0);
+                    },
+                    expenseRatio() {
+                        return this.totalRevenue > 0 ? Math.round((this.totalBudget / this.totalRevenue) * 100) : 0;
+                    },
+                    fixedCost() {
+                        return this.centers.reduce((sum, c) => {
+                            const items = c.budgetItems.filter(i => ['salary', 'insurance', 'office', 'utilities', 'rent', 'phone', 'express'].includes(i.code));
+                            return sum + items.reduce((s, i) => s + i.amount, 0);
+                        }, 0);
+                    },
+                    variableCostRate() {
+                        const variable = this.totalBudget - this.fixedCost;
+                        return this.totalRevenue > 0 ? variable / this.totalRevenue : 0;
+                    },
+                    breakevenPoint() {
+                        return this.variableCostRate < 1 ? Math.round(this.fixedCost / (1 - this.variableCostRate)) : 0;
+                    },
+                    revenueGap() {
+                        return this.breakevenPoint - this.totalRevenue;
+                    },
+                    renderedEditingContent() {
+                        if (typeof marked !== 'undefined') {
+                            return marked.parse(this.editingContent || '');
+                        }
+                        return this.editingContent || '';
+                    },
+                    // 判断当前月份是否有数据
+                    hasCurrentMonthData() {
+                        return this.monthlyBudgets[this.selectedMonth] !== undefined;
+                    },
+                    // 判断是否是空月份（1-3月）
+                    isEmptyMonth() {
+                        return this.selectedMonth <= 3;
+                    },
+                    // 可用于复制数据的源月份（4月到当前月份-1）
+                    availableSourceMonths() {
+                        const months = [];
+                        for (let m = 4; m < this.selectedMonth; m++) {
+                            months.push(m);
+                        }
+                        return months;
+                    }
+                },
+                watch: {
+                    selectedMonth(newMonth, oldMonth) {
+                        // 保存当前月份数据
+                        if (oldMonth && this.currentCenters.length > 0) {
+                            this.saveMonthData(oldMonth);
+                        }
+                        // 加载新月份数据
+                        this.loadMonthData(newMonth);
+                    }
+                },
+                mounted() {
+                    try {
+                        // ESC key listener
+                        document.addEventListener('keydown', (e) => {
+                            if (e.key === 'Escape') {
+                                this.showPolicyModal = false;
+                                this.showImportModal = false;
+                                this.showVersionHistory = false;
+                            }
+                        });
+
+                        // Load saved data
+                        const savedContents = localStorage.getItem('hr_policy_contents');
+                        if (savedContents) {
+                            this.policyContents = JSON.parse(savedContents);
+                        } else {
+                            this.policyContents = { ...defaultPolicyContents };
+                        }
+
+                        const savedStates = localStorage.getItem('hr_policy_states');
+                        if (savedStates) {
+                            this.policyStates = JSON.parse(savedStates);
+                        }
+
+                        const savedHistory = localStorage.getItem('hr_version_history');
+                        if (savedHistory) {
+                            this.versionHistory = JSON.parse(savedHistory);
+                        }
+
+                        // Load saved monthly budgets
+                        const savedBudgets = localStorage.getItem('hr_monthly_budgets');
+                        if (savedBudgets) {
+                            this.monthlyBudgets = JSON.parse(savedBudgets);
+                        }
+
+                        // Load initial month data (4月)
+                        this.loadMonthData(this.selectedMonth);
+
+                        this.$nextTick(() => {
+                            this.initCharts();
+                            this.loaded = true;
+                        });
+                    } catch (e) {
+                        console.error('Mount error:', e);
+                        this.loadError = true;
+                        this.loaded = true;
+                    }
+                },
+                methods: {
+                    // 多月份预算管理方法
+                    getDefaultBudgetTemplate() {
+                        return [
+                            {
+                                id: 'base',
+                                name: '基地管理中心',
+                                director: '屈敏杰',
+                                headcount: 10,
+                                revenue: 139500,
+                                budgetItems: [
+                                    { code: 'salary', name: '工资及奖金', amount: 40000 },
+                                    { code: 'insurance', name: '社保公积金', amount: 2500 },
+                                    { code: 'utilities', name: '网电费', amount: 5000 },
+                                    { code: 'account', name: '账号费用', amount: 9000 },
+                                    { code: 'ads', name: '投流费用', amount: 40000 },
+                                    { code: 'software1', name: '无人直播软件', amount: 10000 },
+                                    { code: 'software2', name: '其他软件', amount: 1000 },
+                                    { code: 'video', name: '视频制作费', amount: 3000 },
+                                    { code: 'audio', name: '音频制作费', amount: 18000 }
+                                ]
+                            },
+                            {
+                                id: 'local',
+                                name: '本地生活运营中心',
+                                director: '李朋',
+                                headcount: 6,
+                                revenue: 100000,
+                                budgetItems: [
+                                    { code: 'salary', name: '工资及奖金', amount: 33000 },
+                                    { code: 'insurance', name: '社保公积金', amount: 1250 },
+                                    { code: 'utilities', name: '网电费', amount: 500 },
+                                    { code: 'rent', name: '房租费', amount: 1800 },
+                                    { code: 'travel', name: '差旅费', amount: 5000 },
+                                    { code: 'account', name: '账号费用', amount: 16500 },
+                                    { code: 'ads', name: '投流费用', amount: 50000 },
+                                    { code: 'software1', name: '无人直播软件', amount: 39500 },
+                                    { code: 'video', name: '视频制作费', amount: 2500 },
+                                    { code: 'audio', name: '音频制作费', amount: 3600 }
+                                ]
+                            },
+                            {
+                                id: 'hr',
+                                name: '人事行政财务中心',
+                                director: '李柯娜',
+                                headcount: 3,
+                                revenue: 0,
+                                budgetItems: [
+                                    { code: 'salary', name: '工资及奖金', amount: 23500 },
+                                    { code: 'insurance', name: '社保公积金', amount: 1500 },
+                                    { code: 'office', name: '办公耗材', amount: 2000 },
+                                    { code: 'utilities', name: '网电费', amount: 1000 },
+                                    { code: 'rent', name: '房租费', amount: 2000 },
+                                    { code: 'express', name: '快递费', amount: 1000 },
+                                    { code: 'training', name: '培训费', amount: 3000 },
+                                    { code: 'software', name: '软件服务费', amount: 1000 }
+                                ]
+                            },
+                            {
+                                id: 'biz',
+                                name: '商务中心',
+                                director: '沈俊杰',
+                                headcount: 2,
+                                revenue: 80000,
+                                budgetItems: [
+                                    { code: 'salary', name: '工资及奖金', amount: 28000 },
+                                    { code: 'insurance', name: '社保公积金', amount: 2000 },
+                                    { code: 'phone', name: '通讯费', amount: 1000 },
+                                    { code: 'utilities', name: '网电费', amount: 500 },
+                                    { code: 'express', name: '快递费', amount: 500 },
+                                    { code: 'entertain', name: '业务招待费', amount: 3000 },
+                                    { code: 'travel', name: '差旅费', amount: 3000 },
+                                    { code: 'software', name: '软件工具', amount: 2000 }
+                                ]
+                            }
+                        ];
+                    },
+                    getEmptyBudgetTemplate() {
+                        // 返回所有金额为0的空模板
+                        const template = this.getDefaultBudgetTemplate();
+                        return template.map(center => ({
+                            ...center,
+                            headcount: 0,
+                            revenue: 0,
+                            budgetItems: center.budgetItems.map(item => ({
+                                ...item,
+                                amount: 0
+                            }))
+                        }));
+                    },
+                    saveMonthData(month) {
+                        // 深拷贝当前数据保存到对应月份
+                        this.monthlyBudgets[month] = JSON.parse(JSON.stringify(this.currentCenters));
+                        localStorage.setItem('hr_monthly_budgets', JSON.stringify(this.monthlyBudgets));
+                    },
+                    loadMonthData(month) {
+                        // 1-3月：显示为空数据
+                        if (month <= 3) {
+                            this.currentCenters = this.getEmptyBudgetTemplate();
+                            return;
+                        }
+                        
+                        // 4月及以后：如果有保存的数据则加载，否则使用默认模板
+                        if (this.monthlyBudgets[month]) {
+                            this.currentCenters = JSON.parse(JSON.stringify(this.monthlyBudgets[month]));
+                        } else if (month === 4) {
+                            // 4月使用默认数据
+                            this.currentCenters = this.getDefaultBudgetTemplate();
+                        } else {
+                            // 5-12月：默认空数据，让用户自行填写或复制
+                            this.currentCenters = this.getEmptyBudgetTemplate();
+                        }
+                    },
+                    copyFromMonth(sourceMonth) {
+                        // 从其他月份复制数据到当前月份
+                        if (this.monthlyBudgets[sourceMonth]) {
+                            this.currentCenters = JSON.parse(JSON.stringify(this.monthlyBudgets[sourceMonth]));
+                            this.saveMonthData(this.selectedMonth);
+                            alert(`已复制${sourceMonth}月的数据到当前月份`);
+                        } else if (sourceMonth === 4) {
+                            this.currentCenters = this.getDefaultBudgetTemplate();
+                            this.saveMonthData(this.selectedMonth);
+                            alert('已复制4月默认数据到当前月份');
+                        } else {
+                            alert(`${sourceMonth}月没有数据`);
+                        }
+                    },
+                    handleCopyFrom(event) {
+                        const month = parseInt(event.target.value);
+                        if (month) {
+                            this.copyFromMonth(month);
+                            event.target.value = ''; // 重置选择
+                        }
+                    },
+                    formatNumber(num) {
+                        return num.toLocaleString('zh-CN');
+                    },
+                    getCenterTotal(center) {
+                        return center.budgetItems.reduce((sum, item) => sum + item.amount, 0);
+                    },
+                    getCenterRatio(center) {
+                        return center.revenue > 0 ? Math.round((this.getCenterTotal(center) / center.revenue) * 100) : 0;
+                    },
+                    getCategoryAmount(center, code) {
+                        const item = center.budgetItems.find(i => i.code === code);
+                        return item ? item.amount : 0;
+                    },
+                    getCategoryTotal(code) {
+                        return this.centers.reduce((sum, c) => sum + this.getCategoryAmount(c, code), 0);
+                    },
+                    getEfficiencyRatio(center) {
+                        return center.revenue / this.getCenterTotal(center);
+                    },
+                    getPolicyStatus(policy) {
+                        const state = this.policyStates[policy.id];
+                        if (state?.status === 'confirmed') return '已确认';
+                        if (state?.status === 'draft') return '草稿';
+                        return '草稿';
+                    },
+                    getPolicyStatusClass(policy) {
+                        const state = this.policyStates[policy.id];
+                        if (state?.status === 'confirmed') return 'version-tag version-confirmed';
+                        return 'version-tag version-draft';
+                    },
+                    getPolicyLastModified(policy) {
+                        if (!policy) return '未修改';
+                        const state = this.policyStates[policy.id];
+                        if (state?.lastModified) {
+                            const date = new Date(state.lastModified);
+                            return `${date.getMonth() + 1}月${date.getDate()}日 ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`;
+                        }
+                        return '未修改';
+                    },
+                    initCharts() {
+                        setTimeout(() => {
+                            if (typeof Chart === 'undefined') return;
+                            
+                            const costCtx = document.getElementById('costChart');
+                            if (costCtx) {
+                                new Chart(costCtx, {
+                                    type: 'doughnut',
+                                    data: {
+                                        labels: ['人工费用', '办公费用', '公务活动费', '其他费用'],
+                                        datasets: [{
+                                            data: [131750, 15300, 129500, 80600],
+                                            backgroundColor: ['#6366f1', '#10b981', '#f59e0b', '#8b5cf6']
+                                        }]
+                                    },
+                                    options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+                                });
+                            }
+
+                            const centerCtx = document.getElementById('centerChart');
+                            if (centerCtx) {
+                                new Chart(centerCtx, {
+                                    type: 'bar',
+                                    data: {
+                                        labels: this.centers.map(c => c.name.replace('中心', '')),
+                                        datasets: [
+                                            { label: '预算', data: this.centers.map(c => this.getCenterTotal(c)), backgroundColor: '#6366f1' },
+                                            { label: '销售指标', data: this.centers.map(c => c.revenue), backgroundColor: '#10b981' }
+                                        ]
+                                    },
+                                    options: { responsive: true, scales: { y: { beginAtZero: true } } }
+                                });
+                            }
+
+                            const breakevenCtx = document.getElementById('breakevenChart');
+                            if (breakevenCtx) {
+                                const revenueRange = Array.from({length: 20}, (_, i) => i * 50000);
+                                new Chart(breakevenCtx, {
+                                    type: 'line',
+                                    data: {
+                                        labels: revenueRange.map(r => '¥' + (r/10000) + '万'),
+                                        datasets: [
+                                            { label: '收入', data: revenueRange, borderColor: '#10b981', fill: false },
+                                            { label: '总成本', data: revenueRange.map(r => this.fixedCost + r * this.variableCostRate), borderColor: '#ef4444', fill: false }
+                                        ]
+                                    },
+                                    options: { responsive: true, scales: { y: { beginAtZero: true } } }
+                                });
+                            }
+                        }, 100);
+                    },
+                    resetBudget() {
+                        if (this.isEmptyMonth) {
+                            alert('1-3月为空数据期，无需重置');
+                            return;
+                        }
+                        if (confirm(`确定要重置${this.selectedMonth}月的预算数据吗？`)) {
+                            if (this.selectedMonth === 4) {
+                                this.currentCenters = this.getDefaultBudgetTemplate();
+                            } else {
+                                this.currentCenters = this.getEmptyBudgetTemplate();
+                            }
+                            this.saveMonthData(this.selectedMonth);
+                        }
+                    },
+                    exportExcel() {
+                        if (typeof XLSX === 'undefined') {
+                            alert('Excel导出功能不可用，请检查网络连接');
+                            return;
+                        }
+                        
+                        const data = this.centers.map(c => ({
+                            '中心': c.name,
+                            '总监': c.director,
+                            '人数': c.headcount,
+                            '销售指标': c.revenue,
+                            '预算合计': this.getCenterTotal(c),
+                            '费销比': this.getCenterRatio(c) + '%'
+                        }));
+
+                        const ws = XLSX.utils.json_to_sheet(data);
+                        const wb = XLSX.utils.book_new();
+                        XLSX.utils.book_append_sheet(wb, ws, '预算汇总');
+
+                        const detailData = [];
+                        this.centers.forEach(c => {
+                            c.budgetItems.forEach(item => {
+                                detailData.push({ '中心': c.name, '科目': item.name, '金额': item.amount });
+                            });
+                        });
+                        const ws2 = XLSX.utils.json_to_sheet(detailData);
+                        XLSX.utils.book_append_sheet(wb, ws2, '预算明细');
+
+                        XLSX.writeFile(wb, `千播预算_${this.selectedMonth}月.xlsx`);
+                    },
+                    openPolicy(policy) {
+                        const content = this.policyContents[policy.id] || defaultPolicyContents[policy.id] || '# 暂无内容';
+                        this.selectedPolicy = {
+                            ...policy,
+                            content: content,
+                            renderedContent: typeof marked !== 'undefined' ? marked.parse(content) : content
+                        };
+                        this.isEditing = false;
+                        this.editingContent = content;
+                        this.showPolicyModal = true;
+                    },
+                    closePolicyModal() {
+                        this.showPolicyModal = false;
+                        this.selectedPolicy = null;
+                        this.isEditing = false;
+                    },
+                    startEditing() {
+                        this.isEditing = true;
+                        this.editingContent = this.selectedPolicy.content;
+                    },
+                    cancelEditing() {
+                        if (confirm('确定要取消编辑？未保存的修改将丢失。')) {
+                            this.isEditing = false;
+                            this.editingContent = this.selectedPolicy.content;
+                        }
+                    },
+                    saveAsDraft() {
+                        this.savePolicy('draft');
+                    },
+                    saveAndConfirm() {
+                        if (confirm('确认后制度将生效，是否继续？')) {
+                            this.savePolicy('confirmed');
+                        }
+                    },
+                    savePolicy(status) {
+                        const policyId = this.selectedPolicy.id;
+                        
+                        this.policyContents[policyId] = this.editingContent;
+                        localStorage.setItem('hr_policy_contents', JSON.stringify(this.policyContents));
+                        
+                        this.policyStates[policyId] = {
+                            status: status,
+                            lastModified: new Date().toISOString()
+                        };
+                        localStorage.setItem('hr_policy_states', JSON.stringify(this.policyStates));
+                        
+                        this.versionHistory.unshift({
+                            policyId: policyId,
+                            title: this.selectedPolicy.title,
+                            status: status,
+                            time: new Date().toLocaleString('zh-CN')
+                        });
+                        localStorage.setItem('hr_version_history', JSON.stringify(this.versionHistory));
+                        
+                        this.selectedPolicy.content = this.editingContent;
+                        this.selectedPolicy.renderedContent = typeof marked !== 'undefined' ? marked.parse(this.editingContent) : this.editingContent;
+                        this.isEditing = false;
+                        
+                        alert(status === 'confirmed' ? '制度已确认并生效！' : '草稿已保存！');
+                    },
+                    confirmPolicy() {
+                        const policyId = this.selectedPolicy.id;
+                        this.policyStates[policyId] = {
+                            status: 'confirmed',
+                            lastModified: new Date().toISOString()
+                        };
+                        localStorage.setItem('hr_policy_states', JSON.stringify(this.policyStates));
+                        alert('制度已确认生效！');
+                    },
+                    downloadPolicyMd() {
+                        const blob = new Blob([this.selectedPolicy.content], { type: 'text/markdown' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `${this.selectedPolicy.id}-${this.selectedPolicy.title}.md`;
+                        a.click();
+                    },
+                    exportAllPolicies() {
+                        let allContent = '# 千播公司制度体系\n\n';
+                        this.policies.forEach(policy => {
+                            const content = this.policyContents[policy.id] || defaultPolicyContents[policy.id];
+                            allContent += `\n---\n\n${content}\n`;
+                        });
+                        
+                        const blob = new Blob([allContent], { type: 'text/markdown' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = '千播公司制度体系.md';
+                        a.click();
+                    },
+                    openImportModal() {
+                        this.importFile = null;
+                        this.importError = '';
+                        this.showImportModal = true;
+                    },
+                    handleFileDrop(e) {
+                        this.isDragging = false;
+                        const file = e.dataTransfer.files[0];
+                        if (file) this.validateAndSetFile(file);
+                    },
+                    handleFileSelect(e) {
+                        const file = e.target.files[0];
+                        if (file) this.validateAndSetFile(file);
+                    },
+                    validateAndSetFile(file) {
+                        const validExtensions = ['.xlsx', '.xls', '.csv'];
+                        if (!validExtensions.some(ext => file.name.toLowerCase().endsWith(ext))) {
+                            this.importError = '请上传Excel文件（.xlsx, .xls）或CSV文件';
+                            return;
+                        }
+                        this.importFile = file;
+                        this.importError = '';
+                    },
+                    processImport() {
+                        if (!this.importFile) return;
+                        alert('导入功能演示：文件 ' + this.importFile.name + ' 已选择。实际导入需要更详细的Excel解析逻辑。');
+                        this.showImportModal = false;
+                        this.importFile = null;
+                    }
+                }
+            }).mount('#app');
+        }
+
+        // Wait for page to fully load
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initApp);
+        } else {
+            initApp();
+        }
+    </script>
+</body>
+</html>

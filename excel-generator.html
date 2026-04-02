@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>千播预算Excel模板生成器</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; padding: 40px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .header { text-align: center; margin-bottom: 40px; }
+        .header h1 { font-size: 28px; color: #1a1a1a; margin-bottom: 8px; }
+        .header p { color: #666; }
+        .card { background: white; border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .card-title { font-size: 18px; font-weight: 600; margin-bottom: 16px; color: #333; }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; }
+        .form-group { display: flex; flex-direction: column; }
+        .form-group label { font-size: 13px; color: #666; margin-bottom: 6px; }
+        .form-group input, .form-group select { padding: 10px 12px; border: 1px solid #e0e0e0; border-radius: 8px; font-size: 14px; transition: border-color 0.2s; }
+        .form-group input:focus, .form-group select:focus { outline: none; border-color: #4f46e5; }
+        .btn { padding: 12px 24px; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s; }
+        .btn-primary { background: #4f46e5; color: white; }
+        .btn-primary:hover { background: #4338ca; }
+        .btn-success { background: #10b981; color: white; }
+        .btn-success:hover { background: #059669; }
+        .center-section { margin-top: 20px; padding-top: 20px; border-top: 1px solid #f0f0f0; }
+        .center-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .center-name { font-weight: 600; color: #4f46e5; }
+        .budget-item { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid #f5f5f5; }
+        .budget-item:last-child { border-bottom: none; }
+        .budget-item label { flex: 1; font-size: 14px; color: #555; }
+        .budget-item input { width: 120px; padding: 8px; border: 1px solid #e0e0e0; border-radius: 6px; text-align: right; }
+        .summary { background: #f8fafc; border-radius: 8px; padding: 16px; margin-top: 16px; }
+        .summary-row { display: flex; justify-content: space-between; padding: 8px 0; }
+        .summary-row.total { font-weight: 600; color: #4f46e5; border-top: 2px solid #e0e0e0; margin-top: 8px; padding-top: 12px; }
+        .tips { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px 16px; border-radius: 4px; margin-bottom: 20px; }
+        .tips p { font-size: 13px; color: #92400e; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 千播预算Excel模板生成器</h1>
+            <p>实时调整预算数据，一键生成专业Excel报表</p>
+        </div>
+
+        <div class="tips">
+            <p>💡 提示：在下方输入框中直接修改数值，点击"生成Excel模板"即可下载包含公式的可编辑Excel文件</p>
+        </div>
+
+        <!-- Global Settings -->
+        <div class="card">
+            <div class="card-title">⚙️ 基础设置</div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>预算月份</label>
+                    <select id="month">
+                        <option value="4">4月</option>
+                        <option value="5">5月</option>
+                        <option value="6">6月</option>
+                        <option value="7">7月</option>
+                        <option value="8">8月</option>
+                        <option value="9">9月</option>
+                        <option value="10">10月</option>
+                        <option value="11">11月</option>
+                        <option value="12">12月</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>年度</label>
+                    <input type="number" id="year" value="2026">
+                </div>
+                <div class="form-group">
+                    <label>公司名称</label>
+                    <input type="text" id="companyName" value="千播">
+                </div>
+            </div>
+        </div>
+
+        <!-- Base Center -->
+        <div class="card">
+            <div class="center-header">
+                <span class="center-name">🏢 基地管理中心 - 屈敏杰</span>
+                <span style="font-size: 13px; color: #666;">编制: 10人</span>
+            </div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>销售指标</label>
+                    <input type="number" class="revenue-input" data-center="base" value="139500">
+                </div>
+            </div>
+            <div class="budget-list" data-center="base">
+                <div class="budget-item"><label>工资及奖金</label><input type="number" class="budget-input" data-item="salary" value="40000"></div>
+                <div class="budget-item"><label>社保公积金</label><input type="number" class="budget-input" data-item="insurance" value="2500"></div>
+                <div class="budget-item"><label>网电费</label><input type="number" class="budget-input" data-item="utilities" value="5000"></div>
+                <div class="budget-item"><label>账号费用</label><input type="number" class="budget-input" data-item="account" value="9000"></div>
+                <div class="budget-item"><label>投流费用</label><input type="number" class="budget-input" data-item="ads" value="40000"></div>
+                <div class="budget-item"><label>无人直播软件服务费</label><input type="number" class="budget-input" data-item="software1" value="10000"></div>
+                <div class="budget-item"><label>其他软件服务费</label><input type="number" class="budget-input" data-item="software2" value="1000"></div>
+                <div class="budget-item"><label>视频制作费</label><input type="number" class="budget-input" data-item="video" value="3000"></div>
+                <div class="budget-item"><label>音频制作费</label><input type="number" class="budget-input" data-item="audio" value="18000"></div>
+            </div>
+            <div class="summary">
+                <div class="summary-row"><span>费用合计</span><span class="center-total" data-center="base">¥128,500</span></div>
+                <div class="summary-row"><span>费销比</span><span class="center-ratio" data-center="base">92.1%</span></div>
+            </div>
+        </div>
+
+        <!-- Local Life Center -->
+        <div class="card">
+            <div class="center-header">
+                <span class="center-name">📱 本地生活运营中心 - 李朋</span>
+                <span style="font-size: 13px; color: #666;">编制: 6人</span>
+            </div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>销售指标</label>
+                    <input type="number" class="revenue-input" data-center="local" value="100000">
+                </div>
+            </div>
+            <div class="budget-list" data-center="local">
+                <div class="budget-item"><label>工资及奖金</label><input type="number" class="budget-input" data-item="salary" value="33000"></div>
+                <div class="budget-item"><label>社保公积金</label><input type="number" class="budget-input" data-item="insurance" value="1250"></div>
+                <div class="budget-item"><label>网电费</label><input type="number" class="budget-input" data-item="utilities" value="500"></div>
+                <div class="budget-item"><label>房租费</label><input type="number" class="budget-input" data-item="rent" value="1800"></div>
+                <div class="budget-item"><label>差旅费</label><input type="number" class="budget-input" data-item="travel" value="5000"></div>
+                <div class="budget-item"><label>账号费用</label><input type="number" class="budget-input" data-item="account" value="16500"></div>
+                <div class="budget-item"><label>投流费用</label><input type="number" class="budget-input" data-item="ads" value="50000"></div>
+                <div class="budget-item"><label>无人直播软件服务费</label><input type="number" class="budget-input" data-item="software1" value="39500"></div>
+                <div class="budget-item"><label>视频制作费</label><input type="number" class="budget-input" data-item="video" value="2500"></div>
+                <div class="budget-item"><label>音频制作费</label><input type="number" class="budget-input" data-item="audio" value="3600"></div>
+            </div>
+            <div class="summary">
+                <div class="summary-row"><span>费用合计</span><span class="center-total" data-center="local">¥153,650</span></div>
+                <div class="summary-row"><span>费销比</span><span class="center-ratio" data-center="local">153.7%</span></div>
+            </div>
+        </div>
+
+        <!-- HR Center -->
+        <div class="card">
+            <div class="center-header">
+                <span class="center-name">👥 人事行政财务中心 - 李柯娜</span>
+                <span style="font-size: 13px; color: #666;">编制: 3人</span>
+            </div>
+            <div class="budget-list" data-center="hr">
+                <div class="budget-item"><label>工资及奖金</label><input type="number" class="budget-input" data-item="salary" value="23500"></div>
+                <div class="budget-item"><label>社保公积金</label><input type="number" class="budget-input" data-item="insurance" value="1500"></div>
+                <div class="budget-item"><label>办公耗材</label><input type="number" class="budget-input" data-item="office" value="2000"></div>
+                <div class="budget-item"><label>网电费</label><input type="number" class="budget-input" data-item="utilities" value="1000"></div>
+                <div class="budget-item"><label>房租费</label><input type="number" class="budget-input" data-item="rent" value="2000"></div>
+                <div class="budget-item"><label>快递费</label><input type="number" class="budget-input" data-item="express" value="1000"></div>
+                <div class="budget-item"><label>培训费</label><input type="number" class="budget-input" data-item="training" value="3000"></div>
+                <div class="budget-item"><label>软件服务费</label><input type="number" class="budget-input" data-item="software" value="1000"></div>
+            </div>
+            <div class="summary">
+                <div class="summary-row"><span>费用合计</span><span class="center-total" data-center="hr">¥35,000</span></div>
+            </div>
+        </div>
+
+        <!-- Business Center -->
+        <div class="card">
+            <div class="center-header">
+                <span class="center-name">🤝 商务中心 - 沈俊杰</span>
+                <span style="font-size: 13px; color: #666;">编制: 2人</span>
+            </div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>销售指标</label>
+                    <input type="number" class="revenue-input" data-center="biz" value="80000">
+                </div>
+            </div>
+            <div class="budget-list" data-center="biz">
+                <div class="budget-item"><label>工资及奖金</label><input type="number" class="budget-input" data-item="salary" value="28000"></div>
+                <div class="budget-item"><label>社保公积金</label><input type="number" class="budget-input" data-item="insurance" value="2000"></div>
+                <div class="budget-item"><label>通讯费</label><input type="number" class="budget-input" data-item="phone" value="1000"></div>
+                <div class="budget-item"><label>网电费</label><input type="number" class="budget-input" data-item="utilities" value="500"></div>
+                <div class="budget-item"><label>快递费</label><input type="number" class="budget-input" data-item="express" value="500"></div>
+                <div class="budget-item"><label>业务招待费</label><input type="number" class="budget-input" data-item="entertain" value="3000"></div>
+                <div class="budget-item"><label>差旅费</label><input type="number" class="budget-input" data-item="travel" value="3000"></div>
+                <div class="budget-item"><label>软件工具</label><input type="number" class="budget-input" data-item="software" value="2000"></div>
+            </div>
+            <div class="summary">
+                <div class="summary-row"><span>费用合计</span><span class="center-total" data-center="biz">¥40,000</span></div>
+                <div class="summary-row"><span>费销比</span><span class="center-ratio" data-center="biz">50.0%</span></div>
+            </div>
+        </div>
+
+        <!-- Total Summary -->
+        <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+            <div class="card-title" style="color: white;">📊 公司级汇总</div>
+            <div class="form-grid" style="margin-top: 16px;">
+                <div>
+                    <p style="font-size: 13px; opacity: 0.8;">月度总预算</p>
+                    <p style="font-size: 32px; font-weight: 700;" id="totalBudget">¥357,150</p>
+                </div>
+                <div>
+                    <p style="font-size: 13px; opacity: 0.8;">销售指标合计</p>
+                    <p style="font-size: 32px; font-weight: 700;" id="totalRevenue">¥319,500</p>
+                </div>
+                <div>
+                    <p style="font-size: 13px; opacity: 0.8;">费销比</p>
+                    <p style="font-size: 32px; font-weight: 700;" id="totalRatio">111.8%</p>
+                </div>
+                <div>
+                    <p style="font-size: 13px; opacity: 0.8;">盈亏状态</p>
+                    <p style="font-size: 32px; font-weight: 700; color: #fecaca;" id="profitStatus">亏损</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="card" style="text-align: center;">
+            <button onclick="generateExcel()" class="btn btn-success" style="font-size: 16px; padding: 16px 40px;">
+                📥 生成Excel模板
+            </button>
+            <p style="margin-top: 12px; font-size: 13px; color: #666;">生成的Excel包含公式，可在Excel中继续调整并自动计算</p>
+        </div>
+    </div>
+
+    <script>
+        // Calculate center totals
+        function calculateCenter(centerId) {
+            const inputs = document.querySelectorAll(`.budget-list[data-center="${centerId}"] .budget-input`);
+            let total = 0;
+            inputs.forEach(input => total += parseFloat(input.value) || 0);
+            return total;
+        }
+
+        // Update display
+        function updateDisplay() {
+            const centers = ['base', 'local', 'hr', 'biz'];
+            let grandTotal = 0;
+            let grandRevenue = 0;
+
+            centers.forEach(centerId => {
+                const total = calculateCenter(centerId);
+                grandTotal += total;
+
+                const revenueInput = document.querySelector(`.revenue-input[data-center="${centerId}"]`);
+                const revenue = revenueInput ? parseFloat(revenueInput.value) || 0 : 0;
+                grandRevenue += revenue;
+
+                // Update center total
+                const totalEl = document.querySelector(`.center-total[data-center="${centerId}"]`);
+                if (totalEl) totalEl.textContent = '¥' + total.toLocaleString();
+
+                // Update ratio
+                const ratioEl = document.querySelector(`.center-ratio[data-center="${centerId}"]`);
+                if (ratioEl && revenue > 0) {
+                    const ratio = ((total / revenue) * 100).toFixed(1);
+                    ratioEl.textContent = ratio + '%';
+                    ratioEl.style.color = ratio > 100 ? '#ef4444' : '#10b981';
+                }
+            });
+
+            // Update grand totals
+            document.getElementById('totalBudget').textContent = '¥' + grandTotal.toLocaleString();
+            document.getElementById('totalRevenue').textContent = '¥' + grandRevenue.toLocaleString();
+            const totalRatio = grandRevenue > 0 ? ((grandTotal / grandRevenue) * 100).toFixed(1) : 0;
+            document.getElementById('totalRatio').textContent = totalRatio + '%';
+            
+            const profitEl = document.getElementById('profitStatus');
+            if (totalRatio > 100) {
+                profitEl.textContent = '亏损';
+                profitEl.style.color = '#fecaca';
+            } else {
+                profitEl.textContent = '盈利';
+                profitEl.style.color = '#a7f3d0';
+            }
+        }
+
+        // Add listeners
+        document.querySelectorAll('input[type="number"]').forEach(input => {
+            input.addEventListener('input', updateDisplay);
+        });
+
+        // Generate Excel with formulas
+        function generateExcel() {
+            const month = document.getElementById('month').value;
+            const year = document.getElementById('year').value;
+            const company = document.getElementById('companyName').value;
+
+            // Create workbook
+            const wb = XLSX.utils.book_new();
+
+            // 1. Summary Sheet
+            const summaryData = [
+                [`${company}公司 ${year}年${month}月 预算表`],
+                [],
+                ['中心', '总监', '编制人数', '销售指标', '费用预算', '费销比', '状态'],
+                ['基地管理中心', '屈敏杰', 10, {f:'D5'}, {f:'SUM(F5:N5)'}, {f:'IF(D4>0,E4/D4*100,"-")'}, {f:'IF(F4>100,"超支","正常")'}],
+                ['', '', '', '', '工资及奖金', '社保公积金', '网电费', '账号费用', '投流费用', '软件服务费', '视频制作费', '音频制作费', '其他'],
+                ['', '', '', '', 40000, 2500, 5000, 9000, 40000, 11000, 3000, 18000, 0],
+                [],
+                ['本地生活运营中心', '李朋', 6, {f:'D9'}, {f:'SUM(F9:O9)'}, {f:'IF(D8>0,E8/D8*100,"-")'}, {f:'IF(F8>100,"超支","正常")'}],
+                ['', '', '', '', '工资及奖金', '社保公积金', '网电费', '房租费', '差旅费', '账号费用', '投流费用', '软件服务费', '视频制作费', '音频制作费'],
+                ['', '', '', '', 33000, 1250, 500, 1800, 5000, 16500, 50000, 39500, 2500, 3600],
+                [],
+                ['人事行政财务中心', '李柯娜', 3, '-', {f:'SUM(F13:M13)'}, '-', '-'],
+                ['', '', '', '', '工资及奖金', '社保公积金', '办公耗材', '网电费', '房租费', '快递费', '培训费', '软件服务费'],
+                ['', '', '', '', 23500, 1500, 2000, 1000, 2000, 1000, 3000, 1000],
+                [],
+                ['商务中心', '沈俊杰', 2, {f:'D17'}, {f:'SUM(F17:M17)'}, {f:'IF(D16>0,E16/D16*100,"-")'}, {f:'IF(F16>100,"超支","正常")'}],
+                ['', '', '', '', '工资及奖金', '社保公积金', '通讯费', '网电费', '快递费', '业务招待费', '差旅费', '软件工具'],
+                ['', '', '', '', 28000, 2000, 1000, 500, 500, 3000, 3000, 2000],
+                [],
+                ['合计', '', {f:'SUM(C4,C8,C12,C16)'}, {f:'SUM(D4,D8,D16)'}, {f:'SUM(E4,E8,E12,E16)'}, {f:'IF(D20>0,E20/D20*100,"-")'}, {f:'IF(F20>100,"亏损","盈利")'}]
+            ];
+
+            const ws1 = XLSX.utils.aoa_to_sheet(summaryData);
+            ws1['!merges'] = [
+                {s:{r:0,c:0},e:{r:0,c:6}},
+                {s:{r:3,c:0},e:{r:5,c:0}}, {s:{r:3,c:1},e:{r:5,c:1}}, {s:{r:3,c:2},e:{r:5,c:2}}, {s:{r:3,c:3},e:{r:5,c:3}},
+                {s:{r:7,c:0},e:{r:9,c:0}}, {s:{r:7,c:1},e:{r:9,c:1}}, {s:{r:7,c:2},e:{r:9,c:2}}, {s:{r:7,c:3},e:{r:9,c:3}},
+                {s:{r:11,c:0},e:{r:13,c:0}}, {s:{r:11,c:1},e:{r:13,c:1}}, {s:{r:11,c:2},e:{r:13,c:2}}, {s:{r:11,c:3},e:{r:13,c:3}},
+                {s:{r:15,c:0},e:{r:17,c:0}}, {s:{r:15,c:1},e:{r:17,c:1}}, {s:{r:15,c:2},e:{r:17,c:2}}, {s:{r:15,c:3},e:{r:17,c:3}}
+            ];
+            ws1['!cols'] = [{wch:20},{wch:10},{wch:10},{wch:15},{wch:15},{wch:10},{wch:10}];
+            XLSX.utils.book_append_sheet(wb, ws1, '预算汇总');
+
+            // 2. Analysis Sheet
+            const analysisData = [
+                ['成本结构分析'],
+                [],
+                ['科目', '金额', '占比'],
+                ['人工费用', {f:"'预算汇总'!E4+'预算汇总'!E8+'预算汇总'!E12+'预算汇总'!E16"}, {f:'IF(SUM(C4:C7)>0,C4/SUM(C4:C7)*100,0)'}],
+                ['办公费用', {f:"'预算汇总'!I12+'预算汇总'!G17+'预算汇总'!H17+'预算汇总'!I17"}, {f:'IF(SUM(C4:C7)>0,C5/SUM(C4:C7)*100,0)'}],
+                ['公务活动费', {f:"'预算汇总'!H4+'预算汇总'!I4+'预算汇总'!F8+'预算汇总'!J8+'预算汇总'!K8+'预算汇总'!J17+'预算汇总'!K17"}, {f:'IF(SUM(C4:C7)>0,C6/SUM(C4:C7)*100,0)'}],
+                ['其他费用', {f:"'预算汇总'!K4+'预算汇总'!L4+'预算汇总'!M4+'预算汇总'!L8+'预算汇总'!M8+'预算汇总'!M12+'预算汇总'!L17"}, {f:'IF(SUM(C4:C7)>0,C7/SUM(C4:C7)*100,0)'}],
+                [],
+                ['盈亏平衡分析'],
+                [],
+                ['固定成本（人工+办公）', {f:"C4+C5"}],
+                ['变动成本率', {f:'IF(\'预算汇总\'!D20>0,(C6+C7)/\'预算汇总\'!D20,0)'}],
+                ['盈亏平衡点（月收入）', {f:'IF(1-C12>0,C11/(1-C12),0)'}],
+                ['当前收入', {f:"'预算汇总'!D20"}],
+                ['缺口', {f:'C13-C14'}]
+            ];
+
+            const ws2 = XLSX.utils.aoa_to_sheet(analysisData);
+            ws2['!cols'] = [{wch:25},{wch:15},{wch:10}];
+            XLSX.utils.book_append_sheet(wb, ws2, '成本分析');
+
+            // Download
+            XLSX.writeFile(wb, `${company}_预算_${year}年${month}月.xlsx`);
+        }
+
+        // Initial calculation
+        updateDisplay();
+    </script>
+</body>
+</html>
